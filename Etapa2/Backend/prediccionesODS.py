@@ -17,6 +17,7 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB
 import joblib
+import numpy as np
 
 app = Flask(__name__)
 
@@ -37,27 +38,36 @@ class CustomPreprocessor(BaseEstimator, TransformerMixin):
             cleaned_data.append(text)
         return cleaned_data
      
+
 # Definir la función para ajustar el modelo existente
 def ajustar_modelo(df):
     X = df['Textos_espanol']  # Características de entrada
     y = df['sdg']  # Etiquetas
-    
+
     # Codificar las nuevas etiquetas con el mismo encoder
     y_encoded = encoder.transform(y)
 
-    # Ajustar el modelo existente con los nuevos datos
-    pipeline.fit(X, y_encoded)  # O usar partial_fit si el modelo lo soporta
+    # Preprocesar los textos utilizando el preprocesador del pipeline
+    preprocessed_texts = pipeline.named_steps['preprocessor'].transform(X)
+
+    # Convertir los textos preprocesados en vectores numéricos usando TfidfVectorizer
+    vectorized_texts = pipeline.named_steps['tfidf'].transform(preprocessed_texts)
+
+    # Ajustar el modelo existente parcialmente con los nuevos datos
+    pipeline.named_steps['model'].partial_fit(vectorized_texts, y_encoded, classes=np.unique(y_encoded))
 
     # Guardar el modelo actualizado
     joblib.dump(pipeline, 'ModeloODS.joblib')
 
     # Calcular las métricas de desempeño en el conjunto de datos actualizado
-    y_pred = pipeline.predict(X)
+    y_pred = pipeline.named_steps['model'].predict(vectorized_texts)
     precision = precision_score(y_encoded, y_pred, average='weighted')
     recall = recall_score(y_encoded, y_pred, average='weighted')
     f1 = f1_score(y_encoded, y_pred, average='weighted')
 
     return precision, recall, f1
+
+
 
 
 # Cargar el modelo y el encoder
