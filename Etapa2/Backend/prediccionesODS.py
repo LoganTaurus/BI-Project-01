@@ -2,16 +2,21 @@ from flask import Flask, request, jsonify
 import joblib
 import pandas as pd
 from sklearn.metrics import precision_score, recall_score, f1_score
-import io
-from num2words import num2words
 import re
 import nltk
 nltk.download('stopwords')
 nltk.download('wordnet')
+nltk.download('omw-1.4')
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.pipeline import Pipeline
+from sklearn.pipeline import Pipeline
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.naive_bayes import MultinomialNB
+import joblib
 
 app = Flask(__name__)
 
@@ -31,49 +36,29 @@ class CustomPreprocessor(BaseEstimator, TransformerMixin):
             text = ' '.join([self.lemmatizer.lemmatize(word) for word in text.split() if word not in self.stopwords])
             cleaned_data.append(text)
         return cleaned_data
-    
-from sklearn.pipeline import Pipeline
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.naive_bayes import MultinomialNB
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-import joblib
-
-# Definir la función para entrenar el modelo
-def entrenar_modelo(df):
+     
+# Definir la función para ajustar el modelo existente
+def ajustar_modelo(df):
     X = df['Textos_espanol']  # Características de entrada
     y = df['sdg']  # Etiquetas
     
-    # Codificación de etiquetas
-    encoder = LabelEncoder()
-    y_encoded = encoder.fit_transform(y)
+    # Codificar las nuevas etiquetas con el mismo encoder
+    y_encoded = encoder.transform(y)
 
-    # Crear el pipeline de preprocesamiento y clasificación
-    pipeline = Pipeline([
-    ('preprocessor', CustomPreprocessor()),  # Preprocesamiento personalizado
-    ('tfidf', TfidfVectorizer(max_features=3000)),  # Vectorización TF-IDF
-    ('model', MultinomialNB())  # Modelo Naive Bayes
-], memory="cachedir")
-    
-    # Dividir los datos en entrenamiento y prueba
-    x_train, x_test, y_train, y_test = train_test_split(X, y_encoded, test_size=0.3, random_state=42)
-    
-    # Entrenar el modelo
-    pipeline.fit(x_train, y_train)
+    # Ajustar el modelo existente con los nuevos datos
+    pipeline.fit(X, y_encoded)  # O usar partial_fit si el modelo lo soporta
 
-    # Guardar el modelo y el codificador
+    # Guardar el modelo actualizado
     joblib.dump(pipeline, 'ModeloODS.joblib')
-    joblib.dump(encoder, 'Encoder.joblib')
 
-    # Calcular las métricas de desempeño
-    y_pred = pipeline.predict(x_test)
-    precision = precision_score(y_test, y_pred, average='weighted')
-    recall = recall_score(y_test, y_pred, average='weighted')
-    f1 = f1_score(y_test, y_pred, average='weighted')
+    # Calcular las métricas de desempeño en el conjunto de datos actualizado
+    y_pred = pipeline.predict(X)
+    precision = precision_score(y_encoded, y_pred, average='weighted')
+    recall = recall_score(y_encoded, y_pred, average='weighted')
+    f1 = f1_score(y_encoded, y_pred, average='weighted')
 
-    # Devolver las métricas de desempeño
     return precision, recall, f1
+
 
 # Cargar el modelo y el encoder
 pipeline = joblib.load('ModeloODS.joblib')
@@ -85,14 +70,34 @@ def predict():
     if request.method == 'GET':
         return jsonify({"message": "Use POST method to predict."})
 
-    # Resto del código para manejar POST
+    # Manejar la solicitud POST
     data = request.json['data']
     df = pd.DataFrame(data)
+    
+    # Preprocesar los datos de entrada
     preprocessed_data = pipeline['preprocessor'].transform(df['Textos_espanol'])
+    
+    # Obtener las predicciones
     predictions = pipeline.predict(preprocessed_data)
+    
+    # Obtener las probabilidades de las predicciones
+    predictions_proba = pipeline.predict_proba(preprocessed_data)
+    
+    # Obtener la probabilidad más alta para cada predicción y redondearla a dos decimales
+    predictions_probabilities = predictions_proba.max(axis=1).round(2)
+    
+    # Decodificar las predicciones (convertir de 0, 1, 2 a 3, 4, 5)
     decoded_predictions = encoder.inverse_transform(predictions)
     
-    return jsonify({'predictions': decoded_predictions.tolist()})
+    # Convertir a tipos de datos serializables por JSON
+    decoded_predictions = decoded_predictions.tolist()  # Convertir a lista
+    predictions_probabilities = predictions_probabilities.tolist()  # Convertir a lista
+    
+    # Preparar el resultado con las predicciones, probabilidades y el texto original
+    result = [{'Textos_espanol': text, 'sdg': pred, 'probabilidad': prob} for text, pred, prob in zip(df['Textos_espanol'], decoded_predictions, predictions_probabilities)]
+    
+    # Devolver el resultado como JSON
+    return jsonify({'predictions': result})
 
 
 @app.route('/retrain', methods=['POST'])
@@ -101,7 +106,7 @@ def retrain():
     df = pd.DataFrame(data)
     
     # Llamar a la función de reentrenamiento
-    precision, recall, f1 = entrenar_modelo(df)
+    precision, recall, f1 = ajustar_modelo(df)
 
     # Devolver las métricas de desempeño
     return jsonify({
