@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Predicción ODS</title>
+</head>
+<body>
+    <h1>Predicción ODS</h1>
+
+    <!-- Formulario para enviar datos para predicción -->
+    <form id="predictForm">
+        <label for="textInput">Ingresa un texto para predecir:</label><br>
+        <textarea id="textInput" rows="4" cols="50"></textarea><br><br>
+        <input type="button" value="Predecir" onclick="makePrediction()">
+    </form>
+    
+    <div id="predictionResult"></div>
+
+    <!-- Formulario para reentrenar el modelo -->
+    <h2>Reentrenar el modelo</h2>
+    <form id="retrainForm">
+        <textarea id="retrainInput" rows="6" cols="50"></textarea><br><br>
+        <input type="button" value="Reentrenar" onclick="retrainModel()">
+    </form>
+    
+    <div id="retrainResult"></div>
+
+    <script>
+        // Función para hacer la predicción
+        async function makePrediction() {
+            const text = document.getElementById("textInput").value;
+            const response = await fetch('/predict', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ data: [{ 'Textos_espanol': text }] })
+            });
+            const result = await response.json();
+            document.getElementById("predictionResult").innerText = "Predicción: " + result.predictions;
+        }
+
+        // Función para reentrenar el modelo
+        async function retrainModel() {
+            const data = document.getElementById("retrainInput").value;
+            const response = await fetch('/retrain', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ data: [{ 'Textos_espanol': data, 'sdg': '3' }] })  // Ejemplo de sdg
+            });
+            const result = await response.json();
+            document.getElementById("retrainResult").innerText = "Métricas: Precision: " + result.precision + ", Recall: " + result.recall + ", F1: " + result.f1_score;
+        }
+    </script>
+</body>
+</html>

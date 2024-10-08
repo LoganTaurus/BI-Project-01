@@ -1,0 +1,19 @@
+# Entorno virtual
+venv/
+*.pyc
+__pycache__/
+
+# Archivos temporales
+*.log
+*.sqlite3
+
+# Librerías descargadas
+.env
+.DS_Store
+
+# Archivos grandes o innecesarios
+*.zip
+*.tar
+*.tar.gz
+*.rar
+node_modules/
