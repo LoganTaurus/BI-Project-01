@@ -1,0 +1,114 @@
+{% extends "layout.html" %}
+
+{% block title %}Cargar Datos de Entrenamiento - ODS Insight{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="my-4">Cargar Datos de Entrenamiento</h1>
+    <p>Sube un archivo con datos de entrenamiento en formato CSV, Excel o JSON.</p>
+
+    <!-- Mensaje de éxito o error (fade in/out) -->
+    {% if message %}
+    <div id="message-box" class="alert {{ 'alert-success' if results else 'alert-danger' }}" role="alert">
+        {{ message }}
+    </div>
+    {% endif %}
+
+    <!-- Formulario para cargar archivo de entrenamiento -->
+    <form action="/analytics/training" method="POST" enctype="multipart/form-data">
+        <!-- Botón para activar o desactivar el Modo Avanzado (aplica a los resultados del entrenamiento) -->
+        <div class="form-check form-switch mb-4">
+            <input class="form-check-input" type="checkbox" id="advanced" name="advanced" {% if advanced == 'on' %}checked{% endif %}>
+            <label class="form-check-label" for="advanced">Modo avanzado</label>
+        </div>
+
+        <!-- Hidden input to store the state of advanced mode -->
+        <input type="hidden" id="advanced-hidden" name="advanced-mode" value="{{ advanced }}">
+
+        <!-- Input file para cargar archivo de entrenamiento -->
+        <div class="mb-3">
+            <label for="training-file" class="form-label">Archivo de entrenamiento (CSV, Excel o JSON):</label>
+            <input class="form-control" type="file" id="training-file" name="training-file" accept=".csv, .xlsx, .xls, .json">
+        </div>
+
+
+
+        <button type="submit" class="btn btn-primary">Subir Archivo</button>
+    </form>
+
+    <!-- Resultados del entrenamiento (solo si hay resultados) -->
+    {% if results and advanced == 'on' %}
+    <div class="mt-4" id="results-container" style="opacity: 0;">
+        <h3>Resultados del Entrenamiento</h3>
+
+        <!-- Tabla para mostrar precisión, recall y f1 -->
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Métrica</th>
+                    <th>Valor</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Precisión</td>
+                    <td>{{ results.precision }}%</td>
+                </tr>
+                <tr>
+                    <td>Recall</td>
+                    <td>{{ results.recall }}%</td>
+                </tr>
+                <tr>
+                    <td>F1-Score</td>
+                    <td>{{ results.f1 }}%</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- Script para hacer fade in del mensaje -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const messageBox = document.getElementById('message-box');
+            const advancedCheckbox = document.getElementById('advanced');
+            const advancedHidden = document.getElementById('advanced-hidden');
+
+            // Sync checkbox state with hidden input value
+            advancedCheckbox.addEventListener('change', function() {
+                advancedHidden.value = advancedCheckbox.checked ? 'on' : 'off';
+            });
+
+            // Fade in del mensaje
+            if (messageBox) {
+                messageBox.style.opacity = 0;
+                setTimeout(() => {
+                    messageBox.style.transition = "opacity 0.5s";
+                    messageBox.style.opacity = 1;
+                    setTimeout(() => {
+                        messageBox.style.opacity = 0;
+                        setTimeout(() => {
+                            messageBox.style.display = 'none';  // Elimina el espacio después del fade out
+                        }, 1000);  // Espera 1 segundo después del fade out
+                    }, 3000);  // El mensaje permanece visible por 3 segundos
+                }, 100);  // Delay antes de iniciar el fade in
+            }
+        });
+    </script>
+
+    <!-- Script para hacer fade in de la tabla -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const resultsContainer = document.getElementById('results-container');
+
+            // Fade in de la tabla y el título
+            if (resultsContainer) {
+                setTimeout(() => {
+                    resultsContainer.style.transition = "opacity 0.5s";
+                    resultsContainer.style.opacity = 1;
+                }, 500);  // Inicia 0.5 segundos después
+            }
+        });
+    </script>
+</div>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends "layout.html" %}
+
+{% block title %}Home - ODS Insight{% endblock %}
+
+{% block content %}
+<div class="jumbotron bg-light p-5">
+    <h1 class="display-4">Bienvenido a ODS Insight</h1>
+    <p class="lead">Nuestra aplicación te permite analizar opiniones ciudadanas y relacionarlas automáticamente con los Objetivos de Desarrollo Sostenible (ODS).</p>
+    <hr class="my-4">
+    <p>¿Sabías que los ODS fueron adoptados en 2015 por las Naciones Unidas? ¡Son un llamado a la acción para acabar con la pobreza, proteger el planeta y asegurar la paz para 2030!</p>
+    <p class="lead">
+        <a class="btn btn-primary btn-lg" href="/analytics" role="button">Comienza el análisis</a>
+    </p>
+</div>
+
+<div class="row mt-5">
+    <div class="col-md-6">
+        <h2>Objetivos de Desarrollo Sostenible (ODS)</h2>
+        <p>Los ODS son 17 metas globales que buscan transformar el mundo. En esta aplicación, nos enfocamos en los ODS 3 (Salud y bienestar), ODS 4 (Educación de calidad), y ODS 5 (Igualdad de género).</p>
+    </div>
+    <div class="col-md-6">
+        <h2>Analiza tus opiniones</h2>
+        <p>Con nuestra herramienta, puedes ingresar opiniones y ver cómo se relacionan con estos ODS. Usa el análisis automatizado para descubrir más sobre la percepción ciudadana y apoyar tus decisiones.</p>
+    </div>
+</div>
+{% endblock %}

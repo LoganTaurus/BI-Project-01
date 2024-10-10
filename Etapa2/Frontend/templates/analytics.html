@@ -1,0 +1,171 @@
+{% extends "layout.html" %}
+
+{% block title %}Análisis de Opiniones - ODS Insight{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center">
+        <h1 class="my-4">Análisis de Opiniones</h1>
+    </div>
+
+    <p>Analiza opiniones ingresadas o sube un archivo con datos en formato CSV, Excel o JSON para analizarlas automáticamente.</p>
+
+    <!-- Contenedor para mensajes emergentes -->
+    {% if message %}
+    <div id="message-box" class="alert {% if results is not none %}alert-success{% else %}alert-danger{% endif %}" role="alert" style="display: none;">
+        {{ message }}
+    </div>
+    {% endif %}
+
+    <!-- Botones para cambiar entre opciones -->
+    <div class="btn-group mb-4" role="group" aria-label="Seleccionar método">
+        <button type="button" class="btn {% if section == 'text-input' %}btn-primary{% else %}btn-outline-primary{% endif %}" id="btn-text">Ingresar Opinión</button>
+        <button type="button" class="btn {% if section == 'file-input' %}btn-primary{% else %}btn-outline-primary{% endif %}" id="btn-file">Subir Archivo</button>
+    </div>
+
+    <!-- Botón para activar o desactivar el Modo Avanzado -->
+    <div class="form-check form-switch mb-4">
+        <input class="form-check-input" type="checkbox" id="advanced" name="advanced" {% if advanced == 'on' %}checked{% endif %}>
+        <label class="form-check-label" for="advanced">Modo avanzado</label>
+    </div>
+
+    <!-- Sección de "Ingresar Opinión" -->
+    <div id="text-section" style="display: {% if section == 'text-input' %}block{% else %}none{% endif %};">
+        <form action="/analytics" method="POST" enctype="multipart/form-data">
+
+            <input type="hidden" name="section" value="text-input"> <!-- Campo oculto para mantener el estado -->
+            <input type="hidden" id="advanced-hidden" name="advanced-mode" value="{{ 'on' if advanced else 'off' }}"> <!-- Mantener el modo avanzado -->
+            <div class="mb-3">
+                <label for="opinionText" class="form-label">Escribe tu opinión:</label>
+                <textarea class="form-control" id="opinionText" name="opinionText" rows="4" placeholder="Escribe aquí tu opinión..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Analizar Opinión</button>
+        </form>
+    </div>
+
+    <!-- Sección de "Subir Archivo" -->
+    <div id="file-section" style="display: {% if section == 'file-input' %}block{% else %}none{% endif %};">
+        <form action="/analytics" method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="section" value="file-input"> <!-- Campo oculto para mantener el estado -->
+            <input type="hidden" id="advanced-hidden-file" name="advanced-mode" value="{{ 'on' if advanced else 'off' }}"> <!-- Mantener el modo avanzado -->
+            <div class="mb-3">
+                <label for="opinions-file" class="form-label">Carga un archivo (CSV, Excel o JSON):</label>
+                <input class="form-control" type="file" id="opinions-file" name="opinions-file" accept=".csv, .xlsx, .xls, .json">
+            </div>
+            <button type="submit" class="btn btn-primary">Analizar Archivo</button>
+        </form>
+    </div>
+
+    <!-- Resultados del análisis: Solo visibles si hay resultados -->
+    {% if results %}
+    <div class="mt-4" id="results-section">
+        <h3>Resultados del Análisis</h3>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Texto</th>
+                    <th>SDG</th>
+                    {% if advanced == 'on' %}
+                    <th>Probabilidad</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for prediction in results.predictions %}
+                <tr>
+                    <td>{{ prediction['spanish-texts'] }}</td>
+                    <td>{{ prediction['sdg'] }}</td>
+                    {% if advanced == 'on' %}
+                    <td>{{ prediction['probability'] }}%</td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Botón para descargar resultados -->
+        <h3 class="mt-4">Descargar Resultados</h3>
+        <div class="form-check">
+            <input class="form-check-input" type="radio" name="download-format" id="csv" value="csv" checked>
+            <label class="form-check-label" for="csv">CSV</label>
+        </div>
+        <div class="form-check">
+            <input class="form-check-input" type="radio" name="download-format" id="excel" value="excel">
+            <label class="form-check-label" for="excel">Excel</label>
+        </div>
+        <div class="form-check">
+            <input class="form-check-input" type="radio" name="download-format" id="json" value="json">
+            <label class="form-check-label" for="json">JSON</label>
+        </div>
+        <button class="btn btn-primary mt-2" id="download-button">Descargar</button>
+    </div>
+    {% endif %}
+
+    <!-- Botón para ir a la sección de entrenamiento de datos -->
+    <a href="/analytics/training" class="btn btn-secondary mt-4">Ir a Entrenamiento de Datos</a>
+
+</div>
+
+<script>
+    // Mostrar el mensaje emergente si existe
+    const messageBox = document.getElementById('message-box');
+    if (messageBox) {
+        messageBox.style.display = 'block';  // Show the message
+        messageBox.style.opacity = 0;  // Initially invisible
+        setTimeout(() => {
+            messageBox.style.transition = "opacity 0.5s";  // Fade in effect
+            messageBox.style.opacity = 1;  // Make it visible
+            setTimeout(() => {
+                messageBox.style.opacity = 0;  // Fade out
+                setTimeout(() => {
+                    messageBox.style.display = 'none';  // Hide completely after
+                }, 1000);  // Wait 1 second before hiding
+            }, 3000);  // Message visible for 3 seconds
+        }, 100);  // Brief delay before starting fade in
+    }
+
+    // Lógica para cambiar entre opiniones y archivo
+    document.getElementById('btn-text').addEventListener('click', function() {
+        document.getElementById('text-section').style.display = 'block';
+        document.getElementById('file-section').style.display = 'none';
+        document.getElementById('results-section').style.display = 'none';  // Ocultar los resultados
+
+        // Cambia la clase del botón seleccionado
+        this.classList.remove('btn-outline-primary');
+        this.classList.add('btn-primary');
+        document.getElementById('btn-file').classList.remove('btn-primary');
+        document.getElementById('btn-file').classList.add('btn-outline-primary');
+    });
+
+    document.getElementById('btn-file').addEventListener('click', function() {
+        document.getElementById('file-section').style.display = 'block';
+        document.getElementById('text-section').style.display = 'none';
+        document.getElementById('results-section').style.display = 'none';  // Ocultar los resultados
+
+        // Cambia la clase del botón seleccionado
+        this.classList.remove('btn-outline-primary');
+        this.classList.add('btn-primary');
+        document.getElementById('btn-text').classList.remove('btn-primary');
+        document.getElementById('btn-text').classList.add('btn-outline-primary');
+    });
+
+    // Mantener el valor del modo avanzado en los formularios
+    document.getElementById('advanced').addEventListener('change', function() {
+        const advancedValue = this.checked ? 'on' : 'off';
+        document.getElementById('advanced-hidden').value = advancedValue;
+        document.getElementById('advanced-hidden-file').value = advancedValue;
+    });
+
+    // Lógica para descargar los resultados con predicciones
+    document.getElementById('download-button').addEventListener('click', function() {
+        const format = document.querySelector('input[name="download-format"]:checked').value;
+        const url = new URL(`/analytics/download?format=${format}`, window.location.origin);
+
+        // Crear una URL con los datos de predicciones codificados
+        url.searchParams.append('predictions', JSON.stringify(document.getElementsByName('predictions')));
+
+        // Redirigir a la URL de descarga
+        window.location.href = url;
+    });
+</script>
+{% endblock %}
